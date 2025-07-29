@@ -1,3 +1,4 @@
+use rombol_city::rotate_foundation;
 const SIZE_X: usize = 7;
 const SIZE_Y: usize = 7;
 fn main() {
@@ -19,7 +20,7 @@ fn main() {
         let mut b = blocks.pop().unwrap();
         let pos_start = b.pos;
         while !field.block_fits(&b) {
-            let incremented = b.increment();
+            let incremented = b.increment_pos();
             if !incremented {} // TODO
         }
         field.place_block(b);
@@ -99,7 +100,7 @@ impl Block {
             rot: 0,
         }
     }
-    pub fn increment(&mut self) -> bool {
+    pub fn increment_pos(&mut self) -> bool {
         if self.pos[1] + self.dim[1] < SIZE_Y {
             self.pos[1] += 1;
             return true;
@@ -111,8 +112,25 @@ impl Block {
         }
         false
     }
+    pub fn increment_rot(&mut self) -> bool {
+        if self.rot == 3 {
+            return false;
+        } else {
+            self.rotate();
+            return true;
+        }
+    }
+
     pub fn reset(&mut self) {
         self.pos = [0, 0];
-        self.rot = 0;
+    }
+
+    fn rotate(&mut self) {
+        self.rot = (self.rot + 1) % 4;
+        self.foundation = rotate_foundation(&self.foundation);
+        self.dim = [self.dim[1], self.dim[0]];
+        assert!(self.dim[0] == self.foundation.len());
+        assert!(self.dim[1] == self.foundation[0].len());
     }
 }
+
