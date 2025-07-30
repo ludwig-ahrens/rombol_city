@@ -1,12 +1,23 @@
 use rombol_city::rotate_foundation;
+
 const SIZE_X: usize = 7;
 const SIZE_Y: usize = 7;
+
 fn main() {
     let mut field = Field::new([SIZE_X, SIZE_Y]);
-    field.place_pin([0, 1]);
+    field.place_pin([1, 2]);
     let mut blocks = vec![
+        Block::new(vec![vec![true, true]]),
         Block::new(vec![vec![true, true, true, true, true]]),
         Block::new(vec![vec![true, true, true], vec![false, true, false]]),
+        Block::new(vec![
+            vec![true, true, true, true],
+            vec![false, false, true, false],
+        ]),
+        Block::new(vec![
+            vec![true, true, true, true],
+            vec![false, true, true, false],
+        ]),
         Block::new(vec![
             vec![true, true, true],
             vec![true, true, false],
@@ -23,42 +34,33 @@ fn main() {
             vec![false, true, false],
         ]),
         Block::new(vec![
-            vec![true, true, true, true],
-            vec![false, false, true, false],
-        ]),
-        Block::new(vec![
-            vec![true, true, true, true],
-            vec![false, true, true, false],
-        ]),
-        Block::new(vec![
             vec![true, true, true, false],
             vec![false, true, true, true],
             vec![false, true, true, false],
         ]),
     ];
-    while blocks.len() > 0 {
-        let mut b = blocks.pop().unwrap();
-        let mut tmp = false; // TODO tidy up
-        while !field.block_fits(&b) || tmp {
-            tmp = false;
+    let mut n_solution: usize = 0;
+    loop {
+        let mut b = match blocks.pop() {
+            Some(block) => block,
+            None => field.pop_block().unwrap(), // if at a solution, look for the next
+        };
+        while !field.block_fits(&b) || b.tried {
             if !b.increment() {
                 b.reset();
                 blocks.push(b);
-                b = field.pop_block().unwrap();
-                tmp = true; // this position has been tried before; increment before placing
-                //println!(
-                    //"Removed block, {}, {}",
-                    //blocks.len() + 1,
-                    //field.blocks.len()
-                //);
-                //field.print();
+                let block_option = field.pop_block();
+                b = block_option.unwrap();
             }
         }
         field.place_block(b);
-        //println!("Placed block, {}, {}", blocks.len(), field.blocks.len());
-        //field.print();
+        if blocks.len() == 0 {
+            n_solution += 1;
+            println!("{}", n_solution);
+            field.print();
+            println!("");
+        }
     }
-    field.print();
 }
 
 struct Field {
@@ -83,7 +85,6 @@ impl Field {
         for x in 0..b.dim[0] {
             for y in 0..b.dim[1] {
                 if self.blocked[b.pos[0] + x][b.pos[1] + y] && b.foundation[x][y] {
-                    //println!("Blocked at: {}, {}",b.pos[0] + x, b.pos[1] + y);
                     return false;
                 }
             }
@@ -91,8 +92,9 @@ impl Field {
         true
     }
 
-    pub fn place_block(&mut self, b: Block) {
+    pub fn place_block(&mut self, mut b: Block) {
         assert!(self.block_fits(&b));
+        b.tried = true;
         for x in 0..b.dim[0] {
             for y in 0..b.dim[1] {
                 if b.foundation[x][y] {
@@ -142,7 +144,6 @@ impl Field {
         for row in &table {
             println!("{:?}", row);
         }
-        println!("");
     }
 }
 
@@ -151,15 +152,24 @@ struct Block {
     foundation: Vec<Vec<bool>>,
     pos: [usize; 2],
     rot: usize,
+    tried: bool,
+    n_rot: usize,
 }
 
 impl Block {
     pub fn new(foundation: Vec<Vec<bool>>) -> Self {
+        let len_row = foundation[0].len();
+        for row in &foundation {
+            assert_eq!(len_row, row.len())
+        }
+        let n_rot = if foundation.len() > 1 { 2 } else { 0 } + if len_row > 1 { 2 } else { 0 };
         Block {
-            dim: [foundation.len(), foundation[0].len()], // TODO check all rows same length
+            dim: [foundation.len(), len_row], // TODO check all rows same length
             foundation,
             pos: [0, 0],
             rot: 0,
+            tried: false,
+            n_rot,
         }
     }
     pub fn increment(&mut self) -> bool {
@@ -173,26 +183,30 @@ impl Block {
     fn increment_pos(&mut self) -> bool {
         if self.pos[1] + self.dim[1] < SIZE_Y {
             self.pos[1] += 1;
+            self.tried = false;
             return true;
         }
         if self.pos[0] + self.dim[0] < SIZE_X {
             self.pos[0] += 1;
             self.pos[1] = 0;
+            self.tried = false;
             return true;
         }
         false
     }
     fn increment_rot(&mut self) -> bool {
-        if self.rot == 3 {
+        if self.rot == self.n_rot - 1 {
             return false;
         } else {
             self.pos = [0, 0];
             self.rotate();
+            self.tried = false;
             return true;
         }
     }
 
     pub fn reset(&mut self) {
+        self.tried = false;
         self.pos = [0, 0];
         while self.rot != 0 {
             self.rotate()
@@ -200,15 +214,10 @@ impl Block {
     }
 
     fn rotate(&mut self) {
-        self.rot = (self.rot + 1) % 4;
+        self.rot = (self.rot + 1) % self.n_rot;
         self.foundation = rotate_foundation(&self.foundation);
         self.dim = [self.dim[1], self.dim[0]];
         assert!(self.dim[0] == self.foundation.len());
         assert!(self.dim[1] == self.foundation[0].len());
     }
-
-    //pub fn print(&self) {
-        //println!("{:?}", self.pos);
-        //println!("{:?}", self.rot);
-    //}
 }
