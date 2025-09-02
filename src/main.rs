@@ -1,5 +1,6 @@
 use crate::block::Block;
 use crate::field::Field;
+use std::io;
 
 pub mod block;
 pub mod field;
@@ -8,9 +9,16 @@ const SIZE_X: usize = 7;
 const SIZE_Y: usize = 7;
 
 fn main() {
+    // setup
     let mut blocks = init_blocks();
     let mut field = Field::new([SIZE_X, SIZE_Y]);
-    field.place_pin([2, 2]);
+    // pin position from user
+    println!("Enter horizontal pin position");
+    let x = user_input(SIZE_X);
+    println!("Enter vertical pin position");
+    let y = user_input(SIZE_X);
+    field.place_pin([y, x]);
+    // find solutions with back tracking
     let n = find_solutions(&mut field, &mut blocks);
     println!("{} solutions found", n);
 }
@@ -29,6 +37,7 @@ fn find_solutions(field: &mut Field, blocks: &mut Vec<Block>) -> usize {
                 b.reset();
                 blocks.push(b);
                 let block_option = field.pop_block();
+                // if the first block cannot be incremented, everything has been tried
                 if block_option.is_none() {
                     return n_solution;
                 }
@@ -42,6 +51,26 @@ fn find_solutions(field: &mut Field, blocks: &mut Vec<Block>) -> usize {
             println!("");
         }
     }
+}
+
+fn user_input(n_max: usize) -> usize {
+    let mut number: usize = n_max;
+    while number >= n_max {
+        println!("Enter a value between 0 and {}", n_max - 1);
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+        match input.trim().parse::<usize>() {
+            Ok(n) => {
+                number = n;
+            }
+            Err(e) => {
+                println!("Not a valid input: {}", e);
+            }
+        }
+    }
+    number
 }
 
 fn init_blocks() -> Vec<Block> {
